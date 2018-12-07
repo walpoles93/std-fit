@@ -2,13 +2,14 @@
 STD NMR Build Up Curve Solver
 Written by Sam Walpole
 sam@samwalpole.com
-v1.0.2 7/12/18
+v1.2.0 7/12/18
 '''
 
 from math import exp
 import numpy as np
 from scipy.optimize import minimize
 import matplotlib.pyplot as plt
+import seaborn as sns
 
 
 
@@ -172,28 +173,51 @@ def calc_build_up_curve(std_max, k_sat, t_sats):
     #calculate std value for given t sat
     std = np.vectorize(lambda t_sat:std_max * (1 - exp(-1 * k_sat * t_sat)))
     return std(t_sats)
+    
+    
+    
+def plot_curves(exp_tsats, exp_stds, pred_tsats, pred_stds, labels, fname='build_up_curves'):
+    '''
+    Take experimental and predicted stds and t_sats and plot them as a graph to file
+    
+    Keyword arguments:
+    exp_tsats -- 1D array containing saturation times used in the experiment (array(float))
+    exp_stds -- 2D array with rows containing experimental STD build up curves (ndarray(float))
+    pred_tsats -- 1D array containing smoothed t_sats used in curve prediction (array(float))
+    pred_stds -- 2D array with rows containing predicted STD build up curves (ndarray(float))
+    labels -- 1D array with labels for each row of stds (array(str)
+    fname -- name of file to save figure to (str)
+    '''
+    
+    sns.set_context('notebook')
+    sns.set_style('ticks')
+    sns.set_palette('colorblind')
+        
+    def plot(exp_tsats, exp_stds, pred_tsats, pred_stds, labels):
+        
+        #plot the predicetd values as a smooth line
+        sns.lineplot(pred_tsats, pred_stds[0])
+        
+        #plot the experimental values as points
+        #remove zero values from plot
+        sns.scatterplot(exp_tsats[exp_stds[0] != 0], exp_stds[0, exp_stds[0] != 0], label=labels[0]) #TODO remove zero points
+        
+        #recursively plot graphs
+        if(len(exp_stds) == 1):
+            return
+        return plot(exp_tsats, exp_stds[1:], pred_tsats, pred_stds[1:], labels[1:])
+        
+    plot(exp_tsats, exp_stds, pred_tsats, pred_stds, labels)
+    
+    plt.legend(loc='best')
+    plt.xlabel('Saturation Time (s)')
+    plt.ylabel('STD Intensity (%)')
+    plt.savefig(fname + '.png')    
 
 
 
 titles, exp_stds = parse_input('inputs.csv')
 predicted_stds = solve_build_up_curves(exp_stds[0], exp_stds[1:])
 
+plot_curves(exp_stds[0], exp_stds[1:], predicted_stds[0], predicted_stds[1:], titles)
 
-
-fig = plt.figure()
-ax = fig.add_axes([0.1,0.1,0.8,0.8])
-
-#for each build up curve
-for i,curve in enumerate(exp_stds[1:]):
-    
-    #plot the predicetd values as a smooth line
-    ax.plot(predicted_stds[0], predicted_stds[i+1])
-    
-    #plot the experimental values as points
-    #remove zero values from plot
-    ax.scatter(exp_stds[0, curve != 0], curve[curve != 0], label=titles[i])
-
-ax.legend(loc='best')
-ax.set_xlabel('Saturation Time (s)')
-ax.set_ylabel('STD Intensity (%)')
-fig.savefig('build_up_curves.png')
