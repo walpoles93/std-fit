@@ -2,7 +2,7 @@
 STD NMR Build Up Curve Solver
 Written by Sam Walpole
 sam@samwalpole.com
-v1.0.0 1/12/18
+v1.0.1 1/12/18
 '''
 
 from math import exp
