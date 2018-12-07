@@ -2,7 +2,7 @@
 STD NMR Build Up Curve Solver
 Written by Sam Walpole
 sam@samwalpole.com
-v1.0.1 1/12/18
+v1.0.2 7/12/18
 '''
 
 from math import exp
@@ -35,7 +35,7 @@ def solve_build_up_curves(t_sats, exp_stds):
     '''
     
     #solve std max and k sat for each row of std values
-    solved_params = np.apply_along_axis(lambda stds:solve_params(t_sats, stds), 1, exp_stds)
+    solved_params = solve_params(t_sats, exp_stds)
     save_results(titles, solved_params)
     
     #use solved parameters to calculate build up curve with many data points
@@ -56,16 +56,14 @@ def solve_build_up_curves(t_sats, exp_stds):
     
     
     
-def solve_params(t_sats, exp_stds):
+def solve_params(t_sats, exp_stds, prev=None):
     '''
     Take a set of experimental STD measurements and return optimised values for STD max and k sat as an array
     
     Keyword arguments:
     t_sats -- a set of experimental t sat values (array(float))
-    exp_stds -- 1D array of experimental STD values for a single build up curve (array(float))
+    exp_stds -- 2D array of experimental STD values, where each row is one build up curve (ndarray(float))
     '''
-
-    #function to be minimized
     def F(x):
         
         #unpack optimised variable into std max and ksat
@@ -75,9 +73,24 @@ def solve_params(t_sats, exp_stds):
         calc_stds = calc_build_up_curve(std_max, k_sat, t_sats)
         
         #square difference between experimental and calculated
+        #first row in exp_stds
         #ignore zero values in calculation
-        return sum_square_diffs(exp_stds[exp_stds != 0], calc_stds[exp_stds != 0])
-    return minimize(F, [1, 1], bounds=[[0,None],[0,None]]).x
+        return sum_square_diffs(exp_stds[0][exp_stds[0] != 0], calc_stds[exp_stds[0] != 0])
+    
+    mini = minimize(F, [1, 1], bounds=[[0,None],[0,None]]).x
+    
+    #check if prev already contains values
+    #and append current minimisation to accumulator
+    if(np.any(prev)):
+        accumulator = np.vstack((prev, mini))  
+    #if prev is empty then the accumaltor is just this minimisation
+    else:
+        accumulator = mini
+        
+    #recursively go through exp_stds    
+    if(len(exp_stds) == 1):
+        return accumulator
+    return solve_params(t_sats, exp_stds[1:], accumulator)
     
     
     
