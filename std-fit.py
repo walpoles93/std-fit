@@ -36,18 +36,23 @@ def solve_build_up_curves(t_sats, exp_stds):
     
     #solve std max and k sat for each row of std values
     solved_params = np.apply_along_axis(lambda stds:solve_params(t_sats, stds), 1, exp_stds)
-    
     save_results(titles, solved_params)
     
     #use solved parameters to calculate build up curve with many data points
     smooth_t_sats = calc_tsats_smooth((t_sats[0], t_sats[len(t_sats) - 1]))
-    build_up_curves = np.array([smooth_t_sats])
-    for param in solved_params:
+    
+    #recursively add a build up curve from each solved set of parameters
+    #to the accumalator and return it
+    def inner(solved_params, prev):
+        build_up_curve = calc_build_up_curve(solved_params[0,0], solved_params[0,1], smooth_t_sats)
+        accumulator = np.vstack((prev, build_up_curve))
+        if(len(solved_params) == 1):
+            return accumulator
+        return inner(solved_params[1:], accumulator)
         
-        #create a 2d array where the first row is t sats
-        #and each successive row is a 'smooth' build up curve
-        build_up_curves = np.vstack((build_up_curves, calc_build_up_curve(param[0], param[1], smooth_t_sats)))
-    return build_up_curves
+    #call the recursive function with smooth_t_sats as the first row in 
+    #the accumulator
+    return inner(solved_params, smooth_t_sats)
     
     
     
